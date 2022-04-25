@@ -38,17 +38,18 @@ double sonar_pulse(void){
         return -3; // previous pulse did not finish
     //Send pulse
     gpio_set_level(TRIG, 0);
-    vTaskDelay(0.01 / portTICK_PERIOD_MS);
     gpio_set_level(TRIG, 1);
 
+    int32_t a, b;
+    vTaskDelay(3 / portTICK_PERIOD_MS);
+    a = mcpwm_capture_signal_get_value(MCPWM_UNIT_0, MCPWM_SELECT_CAP0); //get capture signal counter value
     //Wait for echo
-    int32_t pulse;
-    if(!xQueueReceive(sonar, &pulse, 70 / portTICK_PERIOD_MS))
-        return -2; // Object is too close in front of sonar
+    vTaskDelay(10 / portTICK_PERIOD_MS);
+    b = mcpwm_capture_signal_get_value(MCPWM_UNIT_0, MCPWM_SELECT_CAP0); //get capture signal counter value
 
     double coef = 0.1715; // millimeters per microsecond
     double f = rtc_clk_apb_freq_get() / 1000000;
-    return pulse * coef / f;
+    return (b-a) / f;
 }
 
 static void example_gpio_init(void)
