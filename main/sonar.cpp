@@ -58,7 +58,7 @@ double sonar_pulse(void){
 
 static void example_gpio_init(void)
 {
-    ("initializing mcpwm gpio...\n");
+    ESP_LOGI(TAG, "initializing mcpwm gpio");
     gpio_reset_pin(TRIG);
     gpio_reset_pin(ECHO);
     gpio_set_direction(TRIG, GPIO_MODE_OUTPUT);
@@ -76,7 +76,7 @@ static void capture_config(void)
     mcpwm_isr_register(MCPWM_UNIT_0, sonar_pulse_handler, NULL, ESP_INTR_FLAG_IRAM, NULL);  //Set ISR Handler
 }
 
-static spi_device_handle_t sonar_spi_handle;
+spi_device_handle_t sonar_spi_handle = NULL;
 
 static void spi_config(void)
 {
@@ -97,7 +97,8 @@ static void spi_config(void)
     spi_device_interface_config_t devcfg={
         .command_bits = 8,
         .address_bits = 0,
-        .clock_speed_hz = 800, // 100kHz
+        .clock_speed_hz = SPI_MASTER_FREQ_10M / 100, // 100kHz
+        .queue_size = 2,
     };
     //Add our device to the bus
     ret = spi_bus_add_device(SPI2_HOST, &devcfg, &sonar_spi_handle);
@@ -147,7 +148,8 @@ static double spi_sonar(void)
     }
 
     diff = fall - rise;
-    return diff * 0.01; // Convert to milliseconds
+    double coef = 323.0 / 2; // meters per second / 2
+    return diff * 0.01 * coef; // Convert to milliseconds
 }
 
 
@@ -155,9 +157,10 @@ extern "C" void app_main(void)
 {
     sonar = xQueueCreate( 10, sizeof(int64_t));
     spi_config();
+    esp_log_level_set(TAG, ESP_LOG_WARN);
     while(1) {
         double dist = spi_sonar();
-        printf("Pulse is %f ms long\n", dist);
+        printf("Distance is %f mm\n", dist);
         vTaskDelay(100 / portTICK_PERIOD_MS);
 
     }
