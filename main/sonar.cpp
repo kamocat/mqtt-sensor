@@ -24,38 +24,6 @@ const gpio_num_t ECHO = gpio_num_t(23);
 
 static const char * TAG = "SPI_SONAR";
 
-int32_t rise, fall, diff;
-static void IRAM_ATTR sonar_pulse_handler(void * arg){
-    int32_t tmp = mcpwm_capture_signal_get_value(MCPWM_UNIT_0, MCPWM_SELECT_CAP0); //get capture signal counter value
-    if(mcpwm_capture_signal_get_edge(MCPWM_UNIT_0, MCPWM_SELECT_CAP0)){
-        rise = tmp;
-    } else{
-        fall = tmp;
-    }
-    diff = fall - rise;
-    xQueueSendFromISR(sonar, &diff, NULL);
-}
-
-double sonar_pulse(void){
-    
-    if(gpio_get_level(ECHO))
-        return -3; // previous pulse did not finish
-    //Send pulse
-    gpio_set_level(TRIG, 0);
-    gpio_set_level(TRIG, 1);
-
-    int32_t a, b;
-    vTaskDelay(3 / portTICK_PERIOD_MS);
-    a = mcpwm_capture_signal_get_value(MCPWM_UNIT_0, MCPWM_SELECT_CAP0); //get capture signal counter value
-    //Wait for echo
-    vTaskDelay(10 / portTICK_PERIOD_MS);
-    b = mcpwm_capture_signal_get_value(MCPWM_UNIT_0, MCPWM_SELECT_CAP0); //get capture signal counter value
-
-    //double coef = 0.1715; // millimeters per microsecond
-    double f = rtc_clk_apb_freq_get() / 1000000;
-    return (b-a) / f;
-}
-
 static void example_gpio_init(void)
 {
     ESP_LOGI(TAG, "initializing mcpwm gpio");
@@ -64,16 +32,6 @@ static void example_gpio_init(void)
     gpio_set_direction(TRIG, GPIO_MODE_OUTPUT);
     gpio_set_direction(ECHO, GPIO_MODE_INPUT);
     gpio_pulldown_en(ECHO);
-}
-
-static void capture_config(void)
-{
-    example_gpio_init();
-    mcpwm_gpio_init(MCPWM_UNIT_0, MCPWM_CAP_0, ECHO);
-
-    //In general practice you can connect Capture  to external signal, measure time between rising edge or falling edge and take action accordingly
-    mcpwm_capture_enable(MCPWM_UNIT_0, MCPWM_SELECT_CAP0, MCPWM_BOTH_EDGE, 0);  //capture signal on rising edge, prescale = 0 i.e. capture every edge
-    mcpwm_isr_register(MCPWM_UNIT_0, sonar_pulse_handler, NULL, ESP_INTR_FLAG_IRAM, NULL);  //Set ISR Handler
 }
 
 spi_device_handle_t sonar_spi_handle = NULL;
