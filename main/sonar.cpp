@@ -17,8 +17,8 @@
 #include "soc/rtc.h"
 #include "driver/mcpwm.h"
 #include "soc/mcpwm_periph.h"
+#include "mqtt_queue.h"
 
-static xQueueHandle sonar = NULL;
 const gpio_num_t TRIG = gpio_num_t(22);
 const gpio_num_t ECHO = gpio_num_t(23);
 
@@ -111,15 +111,20 @@ static double spi_sonar(void)
 }
 
 
-extern "C" void app_main(void)
-{
-    sonar = xQueueCreate( 10, sizeof(int64_t));
-    spi_config();
-    esp_log_level_set(TAG, ESP_LOG_WARN);
+void sonar_task(void * arg){
     while(1) {
         double dist = spi_sonar();
+        mqtt_send_msg("waterwall/level", dist);
         printf("Distance is %f mm\n", dist);
-        vTaskDelay(100 / portTICK_PERIOD_MS);
+        vTaskDelay(1000 / portTICK_PERIOD_MS);
 
     }
+}
+
+extern "C" void app_main(void)
+{
+    mqtt_app_start();
+    spi_config();
+    esp_log_level_set(TAG, ESP_LOG_WARN);
+    xTaskCreate(sonar_task, "Sonar task", 1024*2, (void *)0, 10, NULL);
 }
