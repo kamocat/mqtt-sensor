@@ -65,7 +65,7 @@ static void spi_config(void)
 
 uint32_t rx_dma_buffer[1024];
 
-static double spi_sonar(void)
+static int spi_sonar(void)
 {
     /* The sonar sensor isn't actually SPI-enabled, but we're using SPI
      * to measure the pulse width that it puts out
@@ -80,7 +80,8 @@ static double spi_sonar(void)
     ret = spi_device_transmit( sonar_spi_handle, &transaction);
     ESP_ERROR_CHECK(ret);
     ESP_LOGI(TAG, "Finished SPI message");
-    int i, rise, fall, diff, tmp;
+    int i, rise, fall, diff;
+    uint32_t tmp;
     //Find rise time
     for(i = 0; i < transaction.length/32; ++i){
         if(rx_dma_buffer[i])
@@ -112,21 +113,16 @@ static double spi_sonar(void)
 
 
 void sonar_task(void * arg){
-    while(1) {
-        double dist = spi_sonar();
-        mqtt_send_msg("waterwall/level", dist);
-        printf("Distance is %f mm\n", dist);
-        vTaskDelay(1000 / portTICK_PERIOD_MS);
-
-    }
+    spi_config();
+    int dist = spi_sonar();
+    mqtt_send_msg("waterwall/level", dist);
+    printf("Distance is %d mm\n", dist);
+    // Sleep for 5 minutes
+    sleep(300, 5000/portTICK_PERIOD_MS);
 }
 
 extern "C" void app_main(void)
 {
     mqtt_app_start();
-    spi_config();
-    esp_log_level_set(TAG, ESP_LOG_WARN);
-    test_mqtt_rate(50);
-    sleep(10, 5000/portTICK_PERIOD_MS);
     xTaskCreate(sonar_task, "Sonar task", 1024*2, (void *)0, 10, NULL);
 }
