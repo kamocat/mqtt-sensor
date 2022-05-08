@@ -17,6 +17,7 @@
 #include "esp_event.h"
 #include "esp_netif.h"
 #include "protocol_examples_common.h"
+#include "esp_sleep.h"
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -32,20 +33,9 @@
 #include "mqtt_queue.h"
 
 xQueueHandle mqtt_inbox = NULL;
-xQueueHandle mqtt_outbox = NULL;
+static SemaphoreHandle_t mqtt_outbox = NULL;
 
-static const char *TAG = "MQTT_EXAMPLE";
-
-#define USER fan
-#define PASSWORD coolasacucumber
-
-
-/* Topics
- * test/outside
- * test/inside
- * test/fan
- * test/setpoint
- */
+static const char *TAG = "MQTT_HANDLER";
 
 static void log_error_if_nonzero(const char * message, int error_code)
 {
@@ -81,6 +71,7 @@ static esp_err_t mqtt_event_handler_cb(void * arg)
             break;
         case MQTT_EVENT_PUBLISHED:
             ESP_LOGV(TAG, "MQTT_EVENT_PUBLISHED, msg_id=%d", event->msg_id);
+            xSemaphoreGiveFromISR(mqtt_outbox, &xHigherPriorityTaskWoken);
             break;
         case MQTT_EVENT_DATA:
             ESP_LOGI(TAG, "MQTT_EVENT_DATA");
@@ -139,6 +130,7 @@ void mqtt_app_start(void)
 
     ESP_ERROR_CHECK(example_connect());
     mqtt_inbox = xQueueCreate( 10, sizeof( struct msg ));
+    mqtt_outbox = xSemaphoreCreateCounting( 100, 0);
     esp_mqtt_client_config_t mqtt_cfg = {
         .host = "192.168.1.110",
     };
@@ -149,18 +141,31 @@ void mqtt_app_start(void)
 
 void mqtt_send_msg( const char * topic, double value ){
     char buf[20];
+    xSemaphoreTake(mqtt_outbox, 2); // delay up to two ticks
     snprintf(buf, 19, "%f", value);
     int msg_id = esp_mqtt_client_publish(client, topic, buf, 0, 1, 0);
-    ESP_LOGI(TAG, "sent publish successful, msg_id=%d", msg_id);
+    int outbox = uxSemaphoreGetCount(mqtt_outbox);
+    ESP_LOGI(TAG, "sent publish successful, msg_id=%d, outbox count=%d", msg_id, outbox);
 }
 
-void send_data(void * arg){
-    int i = 0;
-    struct msg m;
-    while(1){
-        ++i;
-        mqtt_send_msg("test/iter", i);
-        vTaskDelay(1000/portTICK_PERIOD_MS);
+void sleep(uint32_t seconds, uint32_t timeout){
+    // Make sure all the messages have been sent
+    while(timeout && uxSemaphoreGetCount(mqtt_outbox)){
+        --timeout;
+        vTaskDelay(1); // delay one tick
     }
-    vTaskDelete(NULL);
+    // Power down for sleep
+    esp_mqtt_client_stop(client);
+    esp_wifi_stop();
+    // Sleep for duration
+    esp_sleep_enable_timer_wakeup( seconds * 1000000 );
+    esp_deep_sleep_start();
+    // After sleeping, the program will restart from the beginning
+}
+
+void test_mqtt_rate(int qty){
+    struct msg m;
+    for(int i = 0; i < qty; ++i){
+        mqtt_send_msg("test/iter", i);
+    }
 }

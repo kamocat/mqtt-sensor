@@ -126,5 +126,7 @@ extern "C" void app_main(void)
     mqtt_app_start();
     spi_config();
     esp_log_level_set(TAG, ESP_LOG_WARN);
+    test_mqtt_rate(50);
+    sleep(10, 5000/portTICK_PERIOD_MS);
     xTaskCreate(sonar_task, "Sonar task", 1024*2, (void *)0, 10, NULL);
 }

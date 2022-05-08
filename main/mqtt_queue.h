@@ -10,10 +10,10 @@ struct msg {
 };
 
 extern xQueueHandle mqtt_inbox;
-extern xQueueHandle mqtt_outbox;
 
 void mqtt_send_msg( const char * topic, double value );
 void mqtt_app_start(void);
-
+void sleep(uint32_t seconds, uint32_t timeout);
+void test_mqtt_rate(int qty);
 
 #endif
