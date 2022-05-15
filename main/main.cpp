@@ -28,8 +28,8 @@ void adc_task(void *pvParameters)
     }
     double val = atten * sum;
 //    ESP_LOGI(TAG, "Read ADC value %f", sum);
-    mqtt_send_msg("test/adc", val);
-    sleep(10, 5000/portTICK_PERIOD_MS);
+    mqtt_send_msg("sun/rm_D_dahlia", val);
+    sleep(300, 5000/portTICK_PERIOD_MS);
 }
 
 extern "C" void app_main(void)
