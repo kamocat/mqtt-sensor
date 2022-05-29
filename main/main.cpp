@@ -44,8 +44,8 @@ uint8_t hdq_read(uint8_t cmd){
     return tmp;
 }
 
-uint16_t hdq_read16(uint8_t cmd){
-    uint16_t result = hdq_read(cmd + 1);
+int16_t hdq_read16(uint8_t cmd){
+    int16_t result = hdq_read(cmd + 1);
     result <<= 8;
     result |= hdq_read(cmd);
     return result;
