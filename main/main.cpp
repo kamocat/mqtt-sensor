@@ -13,6 +13,10 @@
 #include "esp_log.h"
 #include "mqtt_queue.h"
 #include "driver/adc.h"
+#include "battery.h"
+
+#define TOPIC "rm_E_big_veggie"
+
 
 static const char * TAG = "ADC";
 const int oversample = 128;
@@ -27,9 +31,24 @@ void adc_task(void *pvParameters)
       sum += adc1_get_raw(ADC1_CHANNEL_7);
     }
     double val = atten * sum;
-//    ESP_LOGI(TAG, "Read ADC value %f", sum);
-    mqtt_send_msg("test/adc", val);
-    sleep(10, 5000/portTICK_PERIOD_MS);
+    ESP_LOGI(TAG, "Read ADC value %f", val);
+    mqtt_send_msg(TOPIC "/sun", val);
+    hdq_init();
+    hdq_reset(); 
+    int celcius = (hdq_read16(0x28) - 2731); // Kelvin to Celcius
+    val = celcius*(0.18) + 32; // Celcius to Farenheit
+    mqtt_send_msg(TOPIC "/temp", val);
+    ESP_LOGI("Temperature", "%f", val);
+    val = hdq_read16(0x0C) * 0.001;
+    mqtt_send_msg(TOPIC "/charge", val);
+    ESP_LOGI("Charge", "%fAh", val);
+    val = hdq_read16(0x08) * 0.001;
+    mqtt_send_msg(TOPIC "/voltage", val);
+    ESP_LOGI("Voltage", "%fV", val);
+    val = hdq_read16(0x14) * 0.001;
+    mqtt_send_msg(TOPIC "/rate", val);
+    ESP_LOGI("Rate", "%fA", val);
+    sleep(300, 5000/portTICK_PERIOD_MS);
 }
 
 extern "C" void app_main(void)
