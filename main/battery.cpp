@@ -10,7 +10,7 @@
 #define ECHO_UART_PORT_NUM      2
 #define ECHO_UART_BAUD_RATE     57600
 
-#define BUF_SIZE 1024
+#define BUF_SIZE 129 // Minimum size allowed for DMA
 
 uint8_t hdq_read(uint8_t cmd){
     const uint8_t hi = 0xFE;
@@ -22,7 +22,7 @@ uint8_t hdq_read(uint8_t cmd){
         cmd >>= 1;
     }
     uart_write_bytes(ECHO_UART_PORT_NUM, buf, 8);
-    int len = uart_read_bytes(ECHO_UART_PORT_NUM, buf, 32, 10/portTICK_PERIOD_MS);
+    int len = uart_read_bytes(ECHO_UART_PORT_NUM, buf, sizeof(buf), 10/portTICK_PERIOD_MS);
     uint8_t tmp = 0;
     for(i = len-8; i < len; ++i){
         tmp >>= 1;
@@ -63,7 +63,7 @@ void hdq_init(void)
     intr_alloc_flags = ESP_INTR_FLAG_IRAM;
 #endif
 
-    ESP_ERROR_CHECK(uart_driver_install(ECHO_UART_PORT_NUM, BUF_SIZE * 2, 0, 0, NULL, intr_alloc_flags));
+    ESP_ERROR_CHECK(uart_driver_install(ECHO_UART_PORT_NUM, BUF_SIZE, 0, 0, NULL, intr_alloc_flags));
     ESP_ERROR_CHECK(uart_param_config(ECHO_UART_PORT_NUM, &uart_config));
     ESP_ERROR_CHECK(uart_set_pin(ECHO_UART_PORT_NUM, ECHO_TEST_TXD, ECHO_TEST_RXD, ECHO_TEST_RTS, ECHO_TEST_CTS));
 }
