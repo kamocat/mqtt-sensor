@@ -110,16 +110,16 @@ void charger_task(void *pvParameters)
         int celcius = (hdq_read16(0x28) - 2731); // Kelvin to Celcius
         double val = celcius*(0.18) + 32; // Celcius to Farenheit
         mqtt_send_msg("bat/charger/temp", val);
-        ESP_LOGI("Temperature", "%f", val);
+        ESP_LOGI("Temperature", "%.1f", val);
         val = hdq_read16(0x0C) * 0.001;
         mqtt_send_msg("bat/charger/charge", val);
-        ESP_LOGI("Charge", "%fAh", val);
+        ESP_LOGI("Charge", "%.3fAh", val);
         val = hdq_read16(0x08) * 0.001;
         mqtt_send_msg("bat/charger/voltage", val);
-        ESP_LOGI("Voltage", "%fV", val);
+        ESP_LOGI("Voltage", "%.3fV", val);
         val = hdq_read16(0x14) * 0.001;
         mqtt_send_msg("bat/charger/rate", val);
-        ESP_LOGI("Rate", "%fA", val);
+        ESP_LOGI("Rate", "%.3fA", val);
         vTaskDelay(10000 / portTICK_PERIOD_MS);
         //sleep(300, 5000/portTICK_PERIOD_MS);
     }
@@ -129,5 +129,5 @@ void charger_task(void *pvParameters)
 extern "C" void app_main(void)
 {
     mqtt_app_start();
-    xTaskCreate(charger_task, "Charger Task", 1024*2, (void *)0, 10, NULL);
+    xTaskCreate(charger_task, "Charger Task", 1024*4, (void *)0, 10, NULL);
 }
